@@ -1,5 +1,6 @@
-
+Makefile*
 .qmake.stash
+*.autosave
 *.ipch
 *.pro.user
 build-*/

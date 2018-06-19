@@ -35,6 +35,11 @@
 #include<vcg/complex/algorithms/bitquad_optimization.h>
 #include "filter_measure.h"
 
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QFile>
+#include <QTextStream>
+
 using namespace std;
 using namespace vcg;
 
@@ -61,7 +66,7 @@ bool FilterMeasurePlugin::applyFilter( const QString& filterName,MeshDocument& m
 		int edgeNum = 0, edgeBorderNum = 0, edgeNonManifNum = 0;
 		tri::Clean<CMeshO>::CountEdgeNum(m, edgeNum, edgeBorderNum, edgeNonManifNum);
 		assert(edgeNonManifFFNum == edgeNonManifNum);
-		int holeNum;
+
 		Log("V: %6i E: %6i F:%6i", m.vn, edgeNum, m.fn);
 		int unrefVertNum = tri::Clean<CMeshO>::CountUnreferencedVertex(m);
 		Log("Unreferenced Vertices %i", unrefVertNum);
@@ -70,7 +75,11 @@ bool FilterMeasurePlugin::applyFilter( const QString& filterName,MeshDocument& m
 		int connectedComponentsNum = tri::Clean<CMeshO>::CountConnectedComponents(m);
 		Log("Mesh is composed by %i connected component(s)\n", connectedComponentsNum);
 
-		if (edgeNonManifFFNum == 0 && vertManifNum == 0){
+        int holeNum = 0;
+        int genus = 0;
+        bool isTwoManifold = edgeNonManifFFNum == 0 && vertManifNum == 0;
+
+        if (isTwoManifold){
 			Log("Mesh is two-manifold ");
 		}
 
@@ -78,12 +87,12 @@ bool FilterMeasurePlugin::applyFilter( const QString& filterName,MeshDocument& m
 		if (vertManifNum != 0) Log("Mesh has %i non two manifold vertexes and %i faces are incident on these vertices\n", vertManifNum, faceVertManif);
 
 		// For Manifold meshes compute some other stuff
-		if (vertManifNum == 0 && edgeNonManifFFNum == 0)
+        if (isTwoManifold)
 		{
 			holeNum = tri::Clean<CMeshO>::CountHoles(m);
 			Log("Mesh has %i holes", holeNum);
 
-			int genus = tri::Clean<CMeshO>::MeshGenus(m.vn - unrefVertNum, edgeNum, m.fn, holeNum, connectedComponentsNum);
+            genus = tri::Clean<CMeshO>::MeshGenus(m.vn - unrefVertNum, edgeNum, m.fn, holeNum, connectedComponentsNum);
 			Log("Genus is %i", genus);
 		}
 		else
@@ -91,6 +100,48 @@ bool FilterMeasurePlugin::applyFilter( const QString& filterName,MeshDocument& m
 			Log("Mesh has a undefined number of holes (non 2-manifold mesh)");
 			Log("Genus is undefined (non 2-manifold mesh)");
 		}
+
+        QJsonObject jsonStatistics;
+        jsonStatistics.insert("vertices", m.vn);
+        jsonStatistics.insert("edges", edgeNum);
+        jsonStatistics.insert("faces", m.fn);
+
+        QJsonObject jsonHealth;
+        jsonHealth.insert("unreferencedVertices", unrefVertNum);
+
+        QJsonObject jsonTopology;
+        jsonTopology.insert("boundaryEdges", edgeBorderNum);
+        jsonTopology.insert("connectedComponentCount", connectedComponentsNum);
+        jsonTopology.insert("isTwoManifold", isTwoManifold);
+
+        if (isTwoManifold) {
+            jsonTopology.insert("holeCount", holeNum);
+            jsonTopology.insert("genus", genus);
+        }
+        else {
+            jsonTopology.insert("nonTwoManifoldEdgeCount", edgeNonManifFFNum);
+            jsonTopology.insert("nonTwoManifoldVertexCount", vertManifNum);
+            jsonTopology.insert("edgeIncidentFaces", faceEdgeManif);
+            jsonTopology.insert("vertexIncidentFaces", faceVertManif);
+        }
+
+        QJsonObject jsonReport;
+        jsonReport.insert("statistics", jsonStatistics);
+        jsonReport.insert("health", jsonHealth);
+        jsonReport.insert("topology", jsonTopology);
+
+        QJsonDocument jsonDoc;
+        jsonDoc.setObject(jsonReport);
+
+        QFile reportFile("mesh-topology-info.json");
+        if (!reportFile.open(QIODevice::WriteOnly)) {
+            return true;
+        }
+
+        QTextStream outStream(&reportFile);
+        outStream << jsonDoc.toJson(QJsonDocument::Indented);
+        outStream.flush();
+        reportFile.close();
 
 		return true;
 	}
