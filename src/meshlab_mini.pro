@@ -17,6 +17,7 @@ SUBDIRS       = common \
                 meshlabplugins/filter_meshing \
                 meshlabplugins/decorate_base \
                 meshlabplugins/filter_measure \
+                meshlabplugins/filter_report \
 #
 # Next some other useful, but still easy to be compiled, plugins
 # Uncomment them if you succeed in compiling the above ones.

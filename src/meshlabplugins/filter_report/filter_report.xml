@@ -1,0 +1,10 @@
+<MESHLAB_FILTER_INTERFACE mfiVersion="2.0">
+  <PLUGIN pluginName="FilterReport" pluginAuthor="Ralph Wiedemeier" pluginEmail="ralph@framefactory.ch">
+  
+  <FILTER filterName="Generate JSON Report" filterFunction="generateJsonReport" filterClass="Measure" filterPre="MM_NONE" filterPost="MM_NONE" filterArity="SingleMesh" filterRasterArity="NoRaster" filterIsInterruptible="false">
+    <FILTER_HELP><![CDATA[Generate a JSON formatted report with topological and geometric measures over a mesh.]]></FILTER_HELP>
+    <FILTER_JSCODE><![CDATA[]]></FILTER_JSCODE>
+  </FILTER>
+  
+  </PLUGIN>
+</MESHLAB_FILTER_INTERFACE>
