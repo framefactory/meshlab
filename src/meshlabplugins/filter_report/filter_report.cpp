@@ -49,6 +49,9 @@ bool FilterReportPlugin::applyFilter( const QString& filterName,MeshDocument& md
 {
     if (filterName == "Generate JSON Report")
     {
+        jsonReport.empty();
+        isWatertight = false;
+
         calculateTopologicalMeasures(md);
         calculateGeometricMeasures(md);
 
@@ -66,6 +69,8 @@ bool FilterReportPlugin::applyFilter( const QString& filterName,MeshDocument& md
 
 void FilterReportPlugin::calculateTopologicalMeasures(MeshDocument& md)
 {
+    // Calculate measures
+
     CMeshO &m = md.mm()->cm;
     tri::Allocator<CMeshO>::CompactFaceVector(m);
     tri::Allocator<CMeshO>::CompactVertexVector(m);
@@ -86,7 +91,7 @@ void FilterReportPlugin::calculateTopologicalMeasures(MeshDocument& md)
 
     assert(edgeNonManifFFNum == edgeNonManifNum);
 
-    bool isWatertight = edgeBorderNum == 0 && edgeNonManifNum == 0;
+    isWatertight = edgeBorderNum == 0 && edgeNonManifNum == 0;
     int unrefVertNum = tri::Clean<CMeshO>::CountUnreferencedVertex(m);
     int connectedComponentsNum = tri::Clean<CMeshO>::CountConnectedComponents(m);
 
@@ -94,7 +99,7 @@ void FilterReportPlugin::calculateTopologicalMeasures(MeshDocument& md)
     int genus = 0;
     bool isTwoManifold = edgeNonManifFFNum == 0 && vertManifNum == 0;
 
-    // For Manifold meshes compute some other stuff
+    // for manifold meshes, compute number of holes and genus
     if (isTwoManifold) {
         holeNum = tri::Clean<CMeshO>::CountHoles(m);
         genus = tri::Clean<CMeshO>::MeshGenus(m.vn - unrefVertNum, edgeNum, m.fn, holeNum, connectedComponentsNum);
@@ -121,10 +126,15 @@ void FilterReportPlugin::calculateTopologicalMeasures(MeshDocument& md)
         jsonTopology.insert("genus", genus);
     }
     else {
-        jsonTopology.insert("nonTwoManifoldEdgeCount", edgeNonManifFFNum);
-        jsonTopology.insert("nonTwoManifoldVertexCount", vertManifNum);
-        jsonTopology.insert("edgeIncidentFaces", faceEdgeManif);
-        jsonTopology.insert("vertexIncidentFaces", faceVertManif);
+        QJsonObject jsonEdges;
+        jsonEdges.insert("count", edgeNonManifFFNum);
+        jsonEdges.insert("incidentFaces", faceEdgeManif);
+        jsonTopology.insert("nonTwoManifoldEdges", jsonEdges);
+
+        QJsonObject jsonVertices;
+        jsonVertices.insert("count", vertManifNum);
+        jsonVertices.insert("incidentFaces", faceVertManif);
+        jsonTopology.insert("nonTwoManifoldVertices", jsonVertices);
     }
 
     jsonReport.insert("statistics", jsonStatistics);
@@ -166,6 +176,7 @@ void FilterReportPlugin::calculateGeometricMeasures(MeshDocument& md)
 
     float area = tri::Stat<CMeshO>::ComputeMeshArea(m);
 
+    // barycenters
     Point3m shellBarycenter = tri::Stat<CMeshO>::ComputeShellBarycenter(m);
     QJsonObject jsonShellBC;
     jsonShellBC.insert("x", shellBarycenter[0]);
@@ -175,20 +186,17 @@ void FilterReportPlugin::calculateGeometricMeasures(MeshDocument& md)
     Point3m cloudBarycenter = tri::Stat<CMeshO>::ComputeCloudBarycenter(m, false);
     QJsonObject jsonCloudBC;
     jsonCloudBC.insert("x", cloudBarycenter[0]);
-    jsonCloudBC.insert("y", cloudBarycenter[0]);
-    jsonCloudBC.insert("z", cloudBarycenter[0]);
+    jsonCloudBC.insert("y", cloudBarycenter[1]);
+    jsonCloudBC.insert("z", cloudBarycenter[2]);
 
     jsonGeometry.insert("shellBarycenter", jsonShellBC);
     jsonGeometry.insert("cloudBarycenter", jsonCloudBC);
 
     // if mesh contains a point cloud, terminate here
     if ((m.fn == 0) && (m.vn != 0)) {
+        jsonReport.insert("geometry", jsonGeometry);
         return;
     }
-
-    int edgeNum = 0, edgeBorderNum = 0, edgeNonManifNum = 0;
-    tri::Clean<CMeshO>::CountEdgeNum(m, edgeNum, edgeBorderNum, edgeNonManifNum);
-    bool isWatertight = (edgeBorderNum == 0) && (edgeNonManifNum == 0);
 
     Matrix33m matPCA;
     Point3m pcav;
@@ -231,6 +239,8 @@ void FilterReportPlugin::calculateGeometricMeasures(MeshDocument& md)
     if (m.Tr != Matrix44m::Identity()) {
         tri::UpdatePosition<CMeshO>::Matrix(m, Inverse(m.Tr), true);
     }
+
+    jsonReport.insert("geometry", jsonGeometry);
 }
 
 void FilterReportPlugin::writeJsonToLog(const QJsonDocument& jsonDoc)

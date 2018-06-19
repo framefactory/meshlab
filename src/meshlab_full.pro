@@ -5,8 +5,8 @@ SUBDIRS       = common \
                 meshlab \
                 meshlabserver \
 # IO plugins
-                meshlabplugins/io_3ds\
-                meshlabplugins/io_base\
+                meshlabplugins/io_3ds \
+                meshlabplugins/io_base \
                 meshlabplugins/io_bre \
                 meshlabplugins/io_collada \
                 meshlabplugins/io_ctm \
@@ -16,7 +16,7 @@ SUBDIRS       = common \
                 meshlabplugins/io_x3d \
                 meshlabplugins/io_pdb \
                 meshlabplugins/io_txt \
-                meshlabplugins/io_u3d\
+                meshlabplugins/io_u3d \
 # Filter plugins
 #no longer needed# meshlabplugins/filter_aging \
                 meshlabplugins/filter_ao \
@@ -35,6 +35,7 @@ SUBDIRS       = common \
                 meshlabplugins/filter_isoparametrization \
                 meshlabplugins/filter_layer \
                 meshlabplugins/filter_measure \
+                meshlabplugins/filter_report \
                 meshlabplugins/filter_meshing \
                 meshlabplugins/filter_mls \
                 meshlabplugins/filter_mutualglobal \
@@ -77,5 +78,3 @@ SUBDIRS       = common \
                 sampleplugins/filter_createiso \
                 sampleplugins/filter_geodesic \
 				sampleplugins/sample_filtergpu \
-
-

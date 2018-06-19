@@ -47,6 +47,7 @@ private:
 	Matrix33m computePrincipalAxisCloud(CMeshO & m);
 
     QJsonObject jsonReport;
+    bool isWatertight;
 };
 
 #endif // FILTER_REPORT_H
