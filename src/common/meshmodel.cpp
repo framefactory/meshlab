@@ -359,7 +359,8 @@ void MeshModel::UpdateBoxAndNormals()
     }
 }
 
-MeshModel::MeshModel(MeshDocument *_parent, QString fullFileName, QString labelName)
+MeshModel::MeshModel(MeshDocument *_parent, QString fullFileName, QString labelName) :
+    _ioMask(0)
 {
     /*glw.m = &(cm);*/
     Clear();
@@ -369,7 +370,8 @@ MeshModel::MeshModel(MeshDocument *_parent, QString fullFileName, QString labelN
     if(!labelName.isEmpty())     this->_label=labelName;
 }
 
-MeshModel::MeshModel(MeshModel* cp)
+MeshModel::MeshModel(MeshModel* cp) :
+    _ioMask(0)
 {
 	if (cp == NULL)
 		return;
@@ -744,6 +746,8 @@ void MeshModel::clearDataMask(int unneededDataMask)
 
 void MeshModel::Enable(int openingFileMask)
 {
+    _ioMask = openingFileMask;
+
     if( openingFileMask & tri::io::Mask::IOM_VERTTEXCOORD )
         updateDataMask(MM_VERTTEXCOORD);
     if( openingFileMask & tri::io::Mask::IOM_WEDGTEXCOORD )
@@ -762,6 +766,11 @@ void MeshModel::Enable(int openingFileMask)
 bool& MeshModel::meshModified()
 {
     return this->modified;
+}
+
+int MeshModel::ioMask() const
+{
+    return _ioMask;
 }
 
 int MeshModel::dataMask() const

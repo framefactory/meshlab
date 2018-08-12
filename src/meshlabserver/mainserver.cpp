@@ -145,7 +145,7 @@ public:
         QDir::setCurrent(fi.absolutePath());
 
         QString extension = fi.suffix();
-        qDebug("Opening a file with extention %s", qUtf8Printable(extension));
+        qDebug("Opening a file with extension %s", qUtf8Printable(extension));
         // retrieving corresponding IO plugin
         MeshIOInterface* pCurrentIOPlugin = PM.allKnowInputFormats[extension.toLower()];
         if (pCurrentIOPlugin == 0)

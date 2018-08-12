@@ -58,7 +58,7 @@ bool FilterReportPlugin::applyFilter( const QString& filterName,MeshDocument& md
         QJsonDocument jsonDoc;
         jsonDoc.setObject(jsonReport);
 
-        writeJsonToFile(jsonDoc);
+        //writeJsonToFile(jsonDoc);
         writeJsonToLog(jsonDoc);
 
         return true;
@@ -71,49 +71,65 @@ void FilterReportPlugin::calculateTopologicalMeasures(MeshDocument& md)
 {
     // Calculate measures
 
-    CMeshO &m = md.mm()->cm;
-    tri::Allocator<CMeshO>::CompactFaceVector(m);
-    tri::Allocator<CMeshO>::CompactVertexVector(m);
+    MeshModel* pMeshModel = md.mm();
+    CMeshO& mesh = pMeshModel->cm;
+    int ioMask = pMeshModel->ioMask();
+
+    bool hasVertexNormals = ioMask & vcg::tri::io::Mask::IOM_VERTNORMAL;
+    bool hasFaceNormals = ioMask & vcg::tri::io::Mask::IOM_FACENORMAL;
+    bool hasWedgeNormals = ioMask & vcg::tri::io::Mask::IOM_WEDGNORMAL;
+
+    bool hasVertexColors = ioMask & vcg::tri::io::Mask::IOM_VERTCOLOR;
+    bool hasFaceColors = ioMask & vcg::tri::io::Mask::IOM_FACECOLOR;
+    bool hasWedgeColors = ioMask & vcg::tri::io::Mask::IOM_WEDGCOLOR;
+
+    bool hasTexCoords = ioMask & vcg::tri::io::Mask::IOM_WEDGTEXCOORD;
+
+    tri::Allocator<CMeshO>::CompactFaceVector(mesh);
+    tri::Allocator<CMeshO>::CompactVertexVector(mesh);
     md.mm()->updateDataMask(MeshModel::MM_FACEFACETOPO);
     md.mm()->updateDataMask(MeshModel::MM_VERTFACETOPO);
 
-    int edgeNonManifFFNum = tri::Clean<CMeshO>::CountNonManifoldEdgeFF(m, true);
-    int faceEdgeManif = tri::UpdateSelection<CMeshO>::FaceCount(m);
-    tri::UpdateSelection<CMeshO>::VertexClear(m);
-    tri::UpdateSelection<CMeshO>::FaceClear(m);
+    int nonManifoldEdgeCount = tri::Clean<CMeshO>::CountNonManifoldEdgeFF(mesh, true);
+    int edgeIncidentFaces = (int)tri::UpdateSelection<CMeshO>::FaceCount(mesh);
+    tri::UpdateSelection<CMeshO>::VertexClear(mesh);
+    tri::UpdateSelection<CMeshO>::FaceClear(mesh);
 
-    int vertManifNum = tri::Clean<CMeshO>::CountNonManifoldVertexFF(m, true);
-    tri::UpdateSelection<CMeshO>::FaceFromVertexLoose(m);
-    int faceVertManif = tri::UpdateSelection<CMeshO>::FaceCount(m);
+    int nonManifoldVertexCount = tri::Clean<CMeshO>::CountNonManifoldVertexFF(mesh, true);
+    tri::UpdateSelection<CMeshO>::FaceFromVertexLoose(mesh);
+    int vertexIncidentFaces = (int)tri::UpdateSelection<CMeshO>::FaceCount(mesh);
 
     int edgeNum = 0, edgeBorderNum = 0, edgeNonManifNum = 0;
-    tri::Clean<CMeshO>::CountEdgeNum(m, edgeNum, edgeBorderNum, edgeNonManifNum);
+    tri::Clean<CMeshO>::CountEdgeNum(mesh, edgeNum, edgeBorderNum, edgeNonManifNum);
 
-    assert(edgeNonManifFFNum == edgeNonManifNum);
+    assert(nonManifoldEdgeCount == edgeNonManifNum);
 
     isWatertight = edgeBorderNum == 0 && edgeNonManifNum == 0;
-    int unrefVertNum = tri::Clean<CMeshO>::CountUnreferencedVertex(m);
-    int connectedComponentsNum = tri::Clean<CMeshO>::CountConnectedComponents(m);
+    int unrefVerticesCount = tri::Clean<CMeshO>::CountUnreferencedVertex(mesh);
+    int connectedComponentsNum = tri::Clean<CMeshO>::CountConnectedComponents(mesh);
 
     int holeNum = 0;
     int genus = 0;
-    bool isTwoManifold = edgeNonManifFFNum == 0 && vertManifNum == 0;
+    bool isTwoManifold = nonManifoldEdgeCount == 0 && nonManifoldVertexCount == 0;
 
     // for manifold meshes, compute number of holes and genus
     if (isTwoManifold) {
-        holeNum = tri::Clean<CMeshO>::CountHoles(m);
-        genus = tri::Clean<CMeshO>::MeshGenus(m.vn - unrefVertNum, edgeNum, m.fn, holeNum, connectedComponentsNum);
+        holeNum = tri::Clean<CMeshO>::CountHoles(mesh);
+        genus = tri::Clean<CMeshO>::MeshGenus(mesh.vn - unrefVerticesCount, edgeNum, mesh.fn, holeNum, connectedComponentsNum);
     }
 
     // Write results to JSON data structure
 
     QJsonObject jsonStatistics;
-    jsonStatistics.insert("vertices", m.vn);
+    jsonStatistics.insert("vertices", mesh.vn);
     jsonStatistics.insert("edges", edgeNum);
-    jsonStatistics.insert("faces", m.fn);
+    jsonStatistics.insert("faces", mesh.fn);
+    jsonStatistics.insert("hasVertexColors", hasVertexColors);
+    jsonStatistics.insert("hasNormals", hasVertexNormals || hasFaceNormals || hasWedgeNormals);
+    jsonStatistics.insert("hasTexCoords", hasTexCoords);
 
     QJsonObject jsonHealth;
-    jsonHealth.insert("unreferencedVertices", unrefVertNum);
+    jsonHealth.insert("unreferencedVertices", unrefVerticesCount);
 
     QJsonObject jsonTopology;
     jsonTopology.insert("boundaryEdges", edgeBorderNum);
@@ -127,16 +143,17 @@ void FilterReportPlugin::calculateTopologicalMeasures(MeshDocument& md)
     }
     else {
         QJsonObject jsonEdges;
-        jsonEdges.insert("count", edgeNonManifFFNum);
-        jsonEdges.insert("incidentFaces", faceEdgeManif);
+        jsonEdges.insert("count", nonManifoldEdgeCount);
+        jsonEdges.insert("incidentFaces", edgeIncidentFaces);
         jsonTopology.insert("nonTwoManifoldEdges", jsonEdges);
 
         QJsonObject jsonVertices;
-        jsonVertices.insert("count", vertManifNum);
-        jsonVertices.insert("incidentFaces", faceVertManif);
+        jsonVertices.insert("count", nonManifoldVertexCount);
+        jsonVertices.insert("incidentFaces", vertexIncidentFaces);
         jsonTopology.insert("nonTwoManifoldVertices", jsonVertices);
     }
 
+    jsonReport.insert("filePath", pMeshModel->pathName());
     jsonReport.insert("statistics", jsonStatistics);
     jsonReport.insert("health", jsonHealth);
     jsonReport.insert("topology", jsonTopology);
@@ -175,6 +192,7 @@ void FilterReportPlugin::calculateGeometricMeasures(MeshDocument& md)
     jsonGeometry.insert("boundingBox", jsonBox);
 
     float area = tri::Stat<CMeshO>::ComputeMeshArea(m);
+    jsonGeometry.insert("area", area);
 
     // barycenters
     Point3m shellBarycenter = tri::Stat<CMeshO>::ComputeShellBarycenter(m);
@@ -245,8 +263,10 @@ void FilterReportPlugin::calculateGeometricMeasures(MeshDocument& md)
 
 void FilterReportPlugin::writeJsonToLog(const QJsonDocument& jsonDoc)
 {
-    Log("@@JSONREPORT@@");
-    Log(jsonDoc.toJson(QJsonDocument::Compact).toStdString().c_str());
+    QByteArray report("JSON=");
+    report += jsonDoc.toJson(QJsonDocument::Compact);
+
+    Log(report.toStdString().c_str());
 }
 
 void FilterReportPlugin::writeJsonToFile(const QJsonDocument& jsonDoc)

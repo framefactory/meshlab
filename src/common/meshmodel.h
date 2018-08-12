@@ -158,6 +158,7 @@ public:
     */
 
 private:
+    int _ioMask;
     int currentDataMask;
     QString fullPathFileName;
     QString _label;
@@ -215,6 +216,7 @@ public:
     void updateDataMask(MeshModel *m);
     void updateDataMask(int neededDataMask);
     void clearDataMask(int unneededDataMask);
+    int ioMask() const;
     int dataMask() const;
 
 
