@@ -99,12 +99,12 @@ void FilterReportPlugin::calculateTopologicalMeasures(MeshDocument& md)
     tri::UpdateSelection<CMeshO>::FaceFromVertexLoose(mesh);
     int vertexIncidentFaces = (int)tri::UpdateSelection<CMeshO>::FaceCount(mesh);
 
-    int edgeNum = 0, edgeBorderNum = 0, edgeNonManifNum = 0;
-    tri::Clean<CMeshO>::CountEdgeNum(mesh, edgeNum, edgeBorderNum, edgeNonManifNum);
+    int numEdges = 0, numBorderEdges = 0, numNonManifEdges = 0;
+    tri::Clean<CMeshO>::CountEdgeNum(mesh, numEdges, numBorderEdges, numNonManifEdges);
 
-    assert(nonManifoldEdgeCount == edgeNonManifNum);
+    assert(nonManifoldEdgeCount == numNonManifEdges);
 
-    isWatertight = edgeBorderNum == 0 && edgeNonManifNum == 0;
+    isWatertight = numBorderEdges == 0 && numNonManifEdges == 0;
     int unrefVerticesCount = tri::Clean<CMeshO>::CountUnreferencedVertex(mesh);
     int connectedComponentsNum = tri::Clean<CMeshO>::CountConnectedComponents(mesh);
 
@@ -115,15 +115,15 @@ void FilterReportPlugin::calculateTopologicalMeasures(MeshDocument& md)
     // for manifold meshes, compute number of holes and genus
     if (isTwoManifold) {
         holeNum = tri::Clean<CMeshO>::CountHoles(mesh);
-        genus = tri::Clean<CMeshO>::MeshGenus(mesh.vn - unrefVerticesCount, edgeNum, mesh.fn, holeNum, connectedComponentsNum);
+        genus = tri::Clean<CMeshO>::MeshGenus(mesh.vn - unrefVerticesCount, numEdges, mesh.fn, holeNum, connectedComponentsNum);
     }
 
     // Write results to JSON data structure
 
     QJsonObject jsonStatistics;
-    jsonStatistics.insert("vertices", mesh.vn);
-    jsonStatistics.insert("edges", edgeNum);
-    jsonStatistics.insert("faces", mesh.fn);
+    jsonStatistics.insert("numVertices", mesh.VN());
+    jsonStatistics.insert("numEdges", numEdges);
+    jsonStatistics.insert("numFaces", mesh.FN());
     jsonStatistics.insert("hasVertexColors", hasVertexColors);
     jsonStatistics.insert("hasNormals", hasVertexNormals || hasFaceNormals || hasWedgeNormals);
     jsonStatistics.insert("hasTexCoords", hasTexCoords);
@@ -132,7 +132,7 @@ void FilterReportPlugin::calculateTopologicalMeasures(MeshDocument& md)
     jsonHealth.insert("unreferencedVertices", unrefVerticesCount);
 
     QJsonObject jsonTopology;
-    jsonTopology.insert("boundaryEdges", edgeBorderNum);
+    jsonTopology.insert("boundaryEdges", numBorderEdges);
     jsonTopology.insert("connectedComponentCount", connectedComponentsNum);
     jsonTopology.insert("isTwoManifold", isTwoManifold);
     jsonTopology.insert("isWatertight", isWatertight);
@@ -153,7 +153,7 @@ void FilterReportPlugin::calculateTopologicalMeasures(MeshDocument& md)
         jsonTopology.insert("nonTwoManifoldVertices", jsonVertices);
     }
 
-    jsonReport.insert("filePath", pMeshModel->pathName());
+    jsonReport.insert("filePath", pMeshModel->fullName());
     jsonReport.insert("statistics", jsonStatistics);
     jsonReport.insert("health", jsonHealth);
     jsonReport.insert("topology", jsonTopology);
@@ -169,11 +169,6 @@ void FilterReportPlugin::calculateGeometricMeasures(MeshDocument& md)
         tri::UpdatePosition<CMeshO>::Matrix(m, m.Tr, true);
     }
 
-    QJsonObject jsonBBSize;
-    jsonBBSize.insert("x", m.bbox.DimX());
-    jsonBBSize.insert("y", m.bbox.DimY());
-    jsonBBSize.insert("z", m.bbox.DimZ());
-
     QJsonObject jsonBBMin;
     jsonBBMin.insert("x", m.bbox.min[0]);
     jsonBBMin.insert("y", m.bbox.min[1]);
@@ -185,11 +180,21 @@ void FilterReportPlugin::calculateGeometricMeasures(MeshDocument& md)
     jsonBBMax.insert("z", m.bbox.max[2]);
 
     QJsonObject jsonBox;
-    jsonBox.insert("size", jsonBBSize);
     jsonBox.insert("min", jsonBBMin);
     jsonBox.insert("max", jsonBBMax);
-
     jsonGeometry.insert("boundingBox", jsonBox);
+
+    QJsonObject jsonSize;
+    jsonSize.insert("x", m.bbox.DimX());
+    jsonSize.insert("y", m.bbox.DimY());
+    jsonSize.insert("z", m.bbox.DimZ());
+    jsonGeometry.insert("size", jsonSize);
+
+    QJsonObject jsonCenter;
+    jsonCenter.insert("x", (m.bbox.max[0] + m.bbox.min[0]) * 0.5);
+    jsonCenter.insert("y", (m.bbox.max[1] + m.bbox.min[1]) * 0.5);
+    jsonCenter.insert("z", (m.bbox.max[2] + m.bbox.min[2]) * 0.5);
+    jsonGeometry.insert("center", jsonCenter);
 
     float area = tri::Stat<CMeshO>::ComputeMeshArea(m);
     jsonGeometry.insert("area", area);
