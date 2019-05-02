@@ -158,6 +158,7 @@ public:
 
         RichParameterSet prePar;
         pCurrentIOPlugin->initPreOpenParameter(extension, fileName,prePar);
+		prePar.join(defaultGlobal);
 
         if (!pCurrentIOPlugin->open(extension, fileName, mm ,mask,prePar))
         {
@@ -299,7 +300,7 @@ public:
         }
 
         QDir::setCurrent(curDir.absolutePath());
-        return MeshDocumentToXMLFile(md,filename,false, outprojinfo.suffix().toLower() == "mlb");
+        return MeshDocumentToXMLFile(md, filename, false, false, outprojinfo.suffix().toLower() == "mlb");
     }
 
     bool script(MeshDocument &meshDocument,const QString& scriptfile,FILE* fp)

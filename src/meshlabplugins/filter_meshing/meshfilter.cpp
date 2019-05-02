@@ -921,7 +921,7 @@ switch(ID(filter))
 	} break;
     case FP_EXPLICIT_ISOTROPIC_REMESHING:
     {
-	    m.updateDataMask( MeshModel::MM_GEOMETRY_AND_TOPOLOGY_CHANGE | MeshModel::MM_FACEFACETOPO  | MeshModel::MM_VERTQUALITY | MeshModel::MM_FACEMARK | MeshModel::MM_FACEFLAG );
+	    m.updateDataMask( MeshModel::MM_FACEFACETOPO  | MeshModel::MM_VERTFACETOPO | MeshModel::MM_VERTQUALITY | MeshModel::MM_FACEMARK | MeshModel::MM_FACEFLAG );
 
 		tri::Clean<CMeshO>::RemoveDuplicateVertex(m.cm);
 		tri::Clean<CMeshO>::RemoveUnreferencedVertex(m.cm);
@@ -958,8 +958,16 @@ switch(ID(filter))
 
 		lastisor_FeatureDeg = par.getFloat("FeatureDeg");
 
-		tri::IsotropicRemeshing<CMeshO>::Do(m.cm, toProjectCopy, params, cb);
-
+        try
+        {
+            tri::IsotropicRemeshing<CMeshO>::Do(m.cm, toProjectCopy, params, cb);
+        }
+        catch(vcg::MissingPreconditionException& excp)
+        {
+            Log(excp.what());
+            errorMessage = excp.what();
+            return false;
+        }
 		m.UpdateBoxAndNormals();
 
 //		m.clearDataMask(MeshModel::MM_GEOMETRY_AND_TOPOLOGY_CHANGE | MeshModel::MM_FACEFACETOPO  | MeshModel::MM_VERTQUALITY | MeshModel::MM_FACEMARK | MeshModel::MM_FACEFLAG);
