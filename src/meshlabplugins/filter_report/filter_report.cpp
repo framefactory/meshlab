@@ -23,6 +23,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include <time.h>
+#include <iostream>
 
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -271,7 +272,8 @@ void FilterReportPlugin::writeJsonToLog(const QJsonDocument& jsonDoc)
     QByteArray report("JSON=");
     report += jsonDoc.toJson(QJsonDocument::Compact);
 
-    Log(report.toStdString().c_str());
+    std::cout << report.toStdString().c_str() << std::endl;
+    //Log(report.toStdString().c_str());
 }
 
 void FilterReportPlugin::writeJsonToFile(const QJsonDocument& jsonDoc)
